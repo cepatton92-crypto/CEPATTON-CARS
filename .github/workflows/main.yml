@@ -1,0 +1,57 @@
+
+name: CEPATTON CARS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pobierz projekt
+        uses: actions/checkout@v4
+
+      - name: Rozpakuj ZIP
+        run: |
+          mkdir source
+          unzip -q CEPATTON_CARS_ANDROID.zip -d source
+          PROJECT_FILE=$(find source -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)
+          if [ -z "$PROJECT_FILE" ]; then
+            echo "Nie znaleziono settings.gradle"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$PROJECT_FILE")" >> "$GITHUB_ENV"
+
+      - name: Zainstaluj Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Przygotuj Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Pobierz Android SDK 35
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Przygotuj Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Zbuduj aplikację APK
+        run: |
+          gradle -p "$PROJECT_DIR" assembleDebug
+
+      - name: Zapisz gotowy APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CEPATTON-CARS-APK
+          path: source/**/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
